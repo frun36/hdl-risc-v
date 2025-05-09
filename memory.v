@@ -5,10 +5,11 @@ module memory (
     output reg [31:0] mem_rdata
 );
 
-  `include "riscv_assembly.v"
 
   reg [31:0] mem[0:255];
 `ifdef BENCH
+  `include "riscv_assembly.v"
+
   integer L0 = 8;
   initial begin
     ADD(x1, x0, x0);
