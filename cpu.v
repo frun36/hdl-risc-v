@@ -22,23 +22,23 @@ module cpu (
   wire is_system = (instr[6:0] == 7'b1110011);  // special
 
 `ifdef BENCH
-  always @(posedge clk) begin
-    if (state == EXECUTE) begin
-      $display("PC=%0d", pc);
-      if (is_alu_reg)
-        $display("ALUreg rd=%d rs1=%d rs2=%d funct3=%b", rd_id, rs1_id, rs2_id, funct3);
-      else if (is_alu_imm)
-        $display("ALUimm rd=%d rs1=%d imm=%0d funct3=%b", rd_id, rs1_id, i_imm, funct3);
-      else if (is_branch) $display("BRANCH");
-      else if (is_jal) $display("JAL");
-      else if (is_jalr) $display("JALR");
-      else if (is_auipc) $display("AUIPC");
-      else if (is_lui) $display("LUI");
-      else if (is_load) $display("LOAD");
-      else if (is_store) $display("STORE");
-      else if (is_system) $display("SYSTEM");
-    end
-  end
+  // always @(posedge clk) begin
+  //   if (state == EXECUTE) begin
+  //     $display("PC=%0d", pc);
+  //     if (is_alu_reg)
+  //       $display("ALUreg rd=%d rs1=%d rs2=%d funct3=%b", rd_id, rs1_id, rs2_id, funct3);
+  //     else if (is_alu_imm)
+  //       $display("ALUimm rd=%d rs1=%d imm=%0d funct3=%b", rd_id, rs1_id, i_imm, funct3);
+  //     else if (is_branch) $display("BRANCH");
+  //     else if (is_jal) $display("JAL");
+  //     else if (is_jalr) $display("JALR");
+  //     else if (is_auipc) $display("AUIPC");
+  //     else if (is_lui) $display("LUI");
+  //     else if (is_load) $display("LOAD");
+  //     else if (is_store) $display("STORE");
+  //     else if (is_system) $display("SYSTEM");
+  //   end
+  // end
 `endif
 
   // Source and destination registers
@@ -75,7 +75,9 @@ module cpu (
   localparam WAIT_INSTR = 1;
   localparam FETCH_REGS = 2;
   localparam EXECUTE = 3;
-  reg [1:0] state = FETCH_INSTR;
+  localparam LOAD = 4;
+  localparam WAIT_DATA = 5;
+  reg [2:0] state = FETCH_INSTR;
 
   wire [31:0] write_back_data;
   wire write_back_en;
@@ -90,14 +92,10 @@ module cpu (
         register_bank[rd_id] <= write_back_data;
         if (rd_id == 10) begin
           x10 <= write_back_data;
-
-`ifdef BENCH
-          $display("LEDS: %b", x10);
-`endif
         end
 
 `ifdef BENCH
-        $display("x%0d <= %b", rd_id, write_back_data);
+        // $display("x%0d <= %b", rd_id, write_back_data);
 `endif
       end
 
@@ -116,17 +114,23 @@ module cpu (
         end
         EXECUTE: begin
           if (!is_system) pc <= next_pc;
-          state <= FETCH_INSTR;
+          state <= is_load ? LOAD : FETCH_INSTR;
 `ifdef BENCH
           if (is_system) $finish();
 `endif
+        end
+        LOAD: begin
+          state <= WAIT_DATA;
+        end
+        WAIT_DATA: begin
+          state <= FETCH_INSTR;
         end
       endcase
     end
   end
 
-  assign mem_addr  = pc;
-  assign mem_rstrb = (state == FETCH_INSTR);
+  assign mem_addr  = (state == WAIT_INSTR || state == FETCH_INSTR) ? pc : loadstore_addr;
+  assign mem_rstrb = (state == FETCH_INSTR || state == LOAD);
 
   // --- ALU ---
   wire [31:0] alu_in_1 = rs1;
@@ -215,10 +219,23 @@ module cpu (
       : is_jalr ? {alu_plus[31:1], 1'b0}
       : pc_plus_4;
   assign write_back_data = (is_jal || is_jalr) ? (pc_plus_4)
-      : (is_lui) ? u_imm
-      : (is_auipc) ? (pc_plus_imm)
+      : is_lui ? u_imm
+      : is_auipc ? pc_plus_imm
+      : is_load ? loaded_data
       : alu_out;
   assign write_back_en = (state == EXECUTE && !is_branch);
+
+  // --- LOAD/STORE ---
+  wire [31:0] loadstore_addr = rs1 + i_imm;
+  wire [15:0] loaded_halfword = loadstore_addr[1] ? mem_rdata[31:16] : mem_rdata[15:0];
+  wire [7:0] loaded_byte = loadstore_addr[0] ? loaded_halfword[15:8] : loaded_halfword[7:0];
+  wire loaded_sign = !funct3[2] & (mem_byte_access ? loaded_byte[7] : loaded_halfword[15]);
+
+  wire mem_byte_access = (funct3[1:0] == 2'b00);
+  wire mem_halfword_access = (funct3[1:0] == 2'b01);
+  wire [31:0] loaded_data = mem_byte_access ? {{24{loaded_sign}}, loaded_byte}
+      : mem_halfword_access ? {{16{loaded_sign}}, loaded_halfword}
+      : mem_rdata;
 
 
 endmodule
