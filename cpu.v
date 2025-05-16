@@ -3,7 +3,8 @@ module cpu (
     input rst,
     output [31:0] mem_addr,
     output mem_rstrb,
-    input [31:0] mem_rdata
+    input [31:0] mem_rdata,
+    output reg [31:0] x10
 );
   reg [31:0] pc;
   reg [31:0] instr;
@@ -87,6 +88,13 @@ module cpu (
     end else begin
       if (write_back_en && rd_id != 0) begin
         register_bank[rd_id] <= write_back_data;
+        if (rd_id == 10) begin
+          x10 <= write_back_data;
+
+`ifdef BENCH
+          $display("LEDS: %b", x10);
+`endif
+        end
 
 `ifdef BENCH
         $display("x%0d <= %b", rd_id, write_back_data);
@@ -122,45 +130,95 @@ module cpu (
 
   // --- ALU ---
   wire [31:0] alu_in_1 = rs1;
-  wire [31:0] alu_in_2 = is_alu_reg ? rs2 : i_imm;
-  reg  [31:0] alu_out;
-  wire [ 4:0] shamt = is_alu_reg ? rs2[4:0] : instr[24:20];
-  always @(*) begin
+  wire [31:0] alu_in_2 = is_alu_reg | is_branch ? rs2 : i_imm;
+  reg [31:0] alu_out;
+
+  wire [32:0] alu_minus = {1'b0, ~alu_in_2} + {1'b0, alu_in_1} + 33'd1;
+  wire eq = (alu_minus[31:0] == 0);
+  wire ltu = alu_minus[32];
+  wire lt = (alu_in_1[31] ^ alu_in_2[31]) ? alu_in_1[31] : alu_minus[32];
+
+  wire [31:0] alu_plus = alu_in_1 + alu_in_2;
+
+  function [31:0] flip32;
+    input [31:0] x;
+    flip32 = {
+      x[0],
+      x[1],
+      x[2],
+      x[3],
+      x[4],
+      x[5],
+      x[6],
+      x[7],
+      x[8],
+      x[9],
+      x[10],
+      x[11],
+      x[12],
+      x[13],
+      x[14],
+      x[15],
+      x[16],
+      x[17],
+      x[18],
+      x[19],
+      x[20],
+      x[21],
+      x[22],
+      x[23],
+      x[24],
+      x[25],
+      x[26],
+      x[27],
+      x[28],
+      x[29],
+      x[30],
+      x[31]
+    };
+  endfunction
+  wire [31:0] shifter_in = (funct3 == 3'b001) ? flip32(alu_in_1) : alu_in_1;
+  wire [31:0] leftshift = flip32(
+      shifter
+  );  // optimization for left shift - reversed right shift of reversed value
+  wire [31:0] shifter = $signed({instr[30] & alu_in_1[31], shifter_in}) >>> alu_in_2[4:0];
+  always @* begin
     case (funct3)
-      3'b000: alu_out = (funct7[5] & instr[5]) ? (alu_in_1 - alu_in_2) : (alu_in_1 + alu_in_2);
-      3'b001: alu_out = (alu_in_1 << shamt);
-      3'b010: alu_out = ($signed(alu_in_1) < $signed(alu_in_2));
-      3'b011: alu_out = (alu_in_1 < alu_in_2);
+      3'b000: alu_out = (funct7[5] & instr[5]) ? alu_minus[31:0] : alu_plus;
+      3'b001: alu_out = leftshift;
+      3'b010: alu_out = {31'd0, lt};
+      3'b011: alu_out = {31'd0, ltu};
       3'b100: alu_out = (alu_in_1 ^ alu_in_2);
-      3'b101: alu_out = funct7[5] ? ($signed(alu_in_1) >>> shamt) : (alu_in_1 >> shamt);
+      3'b101: alu_out = shifter;
       3'b110: alu_out = (alu_in_1 | alu_in_2);
       3'b111: alu_out = (alu_in_1 & alu_in_2);
     endcase
   end
 
   reg take_branch;
-  always @(*) begin
+  always @* begin
     case (funct3)
-      3'b000:  take_branch = (rs1 == rs2);
-      3'b001:  take_branch = (rs1 != rs2);
-      3'b100:  take_branch = ($signed(rs1) < $signed(rs2));
-      3'b101:  take_branch = ($signed(rs1) >= $signed(rs2));
-      3'b110:  take_branch = rs1 < rs2;
-      3'b111:  take_branch = rs1 >= rs2;
+      3'b000:  take_branch = eq;
+      3'b001:  take_branch = !eq;
+      3'b100:  take_branch = lt;
+      3'b101:  take_branch = !lt;
+      3'b110:  take_branch = ltu;
+      3'b111:  take_branch = !ltu;
       default: take_branch = 1'b0;
     endcase
   end
 
-  wire [31:0] next_pc = (is_branch && take_branch) ? pc + b_imm
-      : is_jal ? pc + j_imm
-      : is_jalr ? rs1 + i_imm
-      : pc + 4;
-  assign write_back_data = (is_jal || is_jalr) ? (pc + 4)
+  wire [31:0] pc_plus_imm = pc + (instr[3] ? j_imm[31:0] : instr[4] ? u_imm[31:0] : b_imm[31:0]);
+  wire [31:0] pc_plus_4 = pc + 4;
+
+  wire [31:0] next_pc = ((is_branch && take_branch) || is_jal) ? pc_plus_imm
+      : is_jalr ? {alu_plus[31:1], 1'b0}
+      : pc_plus_4;
+  assign write_back_data = (is_jal || is_jalr) ? (pc_plus_4)
       : (is_lui) ? u_imm
-      : (is_auipc) ? (pc + u_imm)
+      : (is_auipc) ? (pc_plus_imm)
       : alu_out;
-  assign write_back_en =
-      (state == EXECUTE && (is_alu_reg || is_alu_imm || is_jal || is_jalr || is_lui || is_auipc));
+  assign write_back_en = (state == EXECUTE && !is_branch);
 
 
 endmodule
