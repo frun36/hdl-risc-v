@@ -19,14 +19,18 @@ module tb ();
   //   #2 rst = 0;
   // end
 
-  reg [4:0] prev_leds = 0;
+  reg [4:0] prev_leds = 5'bxxxxx;
   initial begin
     clk = 0;
     forever begin
       #1 clk = ~clk;
-      if (leds != prev_leds) begin
+      if (clk && uut.proc.state == uut.proc.WAIT_DATA) begin
+        $display("ADDR = %d; B%b: %b, H%b: %b, S%b; DATA = %b", uut.proc.loadstore_addr,
+                 uut.proc.mem_byte_access, uut.proc.loaded_byte, uut.proc.mem_halfword_access,
+                 uut.proc.loaded_halfword, uut.proc.loaded_sign, uut.proc.loaded_data);
         $display("LEDS = %b", leds);
       end
+
       prev_leds <= leds;
     end
   end

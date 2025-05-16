@@ -16,7 +16,7 @@ module memory (
 
   initial begin
     LI(s0, 0);
-    LI(s1, 10);
+    LI(s1, 16);
     Label(L0_);
     LB(a0, s0, 400);
     CALL(LabelRef(wait_));
@@ -37,7 +37,7 @@ module memory (
     mem[100] = {8'h4, 8'h3, 8'h2, 8'h1};
     mem[101] = {8'h8, 8'h7, 8'h6, 8'h5};
     mem[102] = {8'hc, 8'hb, 8'ha, 8'h9};
-    mem[103] = {8'hff, 8'hf, 8'he, 8'hd};
+    mem[103] = {8'hff, 8'h8f, 8'h8e, 8'h8d};
   end
 `endif
 

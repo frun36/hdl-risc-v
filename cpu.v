@@ -4,7 +4,7 @@ module cpu (
     output [31:0] mem_addr,
     output mem_rstrb,
     input [31:0] mem_rdata,
-    output reg [31:0] x10
+    output [31:0] x10
 );
   reg [31:0] pc;
   reg [31:0] instr;
@@ -82,6 +82,8 @@ module cpu (
   wire [31:0] write_back_data;
   wire write_back_en;
 
+  assign x10 = register_bank[10];
+
   always @(posedge rst, posedge clk) begin
     if (rst) begin
       pc <= 0;
@@ -90,9 +92,6 @@ module cpu (
     end else begin
       if (write_back_en && rd_id != 0) begin
         register_bank[rd_id] <= write_back_data;
-        if (rd_id == 10) begin
-          x10 <= write_back_data;
-        end
 
 `ifdef BENCH
         // $display("x%0d <= %b", rd_id, write_back_data);
@@ -223,7 +222,8 @@ module cpu (
       : is_auipc ? pc_plus_imm
       : is_load ? loaded_data
       : alu_out;
-  assign write_back_en = (state == EXECUTE && !is_branch);
+  assign write_back_en = (state == EXECUTE && !is_branch && !is_store && !is_load)
+      || (state == WAIT_DATA);
 
   // --- LOAD/STORE ---
   wire [31:0] loadstore_addr = rs1 + i_imm;
