@@ -233,7 +233,7 @@ module cpu (
       || (state == WAIT_DATA);
 
   // --- LOAD/STORE ---
-  wire [31:0] loadstore_addr = rs1 + (is_store ? i_imm : i_imm);
+  wire [31:0] loadstore_addr = rs1 + (is_store ? s_imm : i_imm);
   wire [15:0] loaded_halfword = loadstore_addr[1] ? mem_rdata[31:16] : mem_rdata[15:0];
   wire [7:0] loaded_byte = loadstore_addr[0] ? loaded_halfword[15:8] : loaded_halfword[7:0];
   wire loaded_sign = !funct3[2] & (mem_byte_access ? loaded_byte[7] : loaded_halfword[15]);

@@ -62,6 +62,7 @@ module memory (
   wire [29:0] word_addr = mem_addr[31:2];
   always @(posedge clk) begin
     if (mem_rstrb) mem_rdata <= mem[word_addr];
+
     if (mem_wmask[0]) mem[word_addr][7:0] <= mem_wdata[7:0];
     if (mem_wmask[1]) mem[word_addr][15:8] <= mem_wdata[15:8];
     if (mem_wmask[2]) mem[word_addr][23:16] <= mem_wdata[23:16];
