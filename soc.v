@@ -8,6 +8,8 @@ module soc (
 
   wire [31:0] mem_addr;
   wire [31:0] mem_rdata;
+  wire [31:0] mem_wdata;
+  wire [3:0] mem_wmask;
   wire mem_rstrb;
   wire [31:0] x10;
 
@@ -17,6 +19,8 @@ module soc (
       .mem_addr(mem_addr),
       .mem_rstrb(mem_rstrb),
       .mem_rdata(mem_rdata),
+      .mem_wdata(mem_wdata),
+      .mem_wmask(mem_wmask),
       .x10(x10)
   );
 
@@ -24,7 +28,9 @@ module soc (
       .clk(clk),
       .mem_addr(mem_addr),
       .mem_rstrb(mem_rstrb),
-      .mem_rdata(mem_rdata)
+      .mem_rdata(mem_rdata),
+      .mem_wdata(mem_wdata),
+      .mem_wmask(mem_wmask)
   );
 
   assign leds = x10[4:0];

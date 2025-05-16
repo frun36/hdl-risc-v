@@ -4,6 +4,8 @@ module cpu (
     output [31:0] mem_addr,
     output mem_rstrb,
     input [31:0] mem_rdata,
+    output [31:0] mem_wdata,
+    output [3:0] mem_wmask,
     output [31:0] x10
 );
   reg [31:0] pc;
@@ -77,6 +79,7 @@ module cpu (
   localparam EXECUTE = 3;
   localparam LOAD = 4;
   localparam WAIT_DATA = 5;
+  localparam STORE = 6;
   reg [2:0] state = FETCH_INSTR;
 
   wire [31:0] write_back_data;
@@ -113,7 +116,7 @@ module cpu (
         end
         EXECUTE: begin
           if (!is_system) pc <= next_pc;
-          state <= is_load ? LOAD : FETCH_INSTR;
+          state <= is_load ? LOAD : is_store ? STORE : FETCH_INSTR;
 `ifdef BENCH
           if (is_system) $finish();
 `endif
@@ -124,12 +127,16 @@ module cpu (
         WAIT_DATA: begin
           state <= FETCH_INSTR;
         end
+        STORE: begin
+          state <= FETCH_INSTR;
+        end
       endcase
     end
   end
 
   assign mem_addr  = (state == WAIT_INSTR || state == FETCH_INSTR) ? pc : loadstore_addr;
   assign mem_rstrb = (state == FETCH_INSTR || state == LOAD);
+  assign mem_wmask = {4{state == STORE}} & store_wmask;
 
   // --- ALU ---
   wire [31:0] alu_in_1 = rs1;
@@ -226,7 +233,7 @@ module cpu (
       || (state == WAIT_DATA);
 
   // --- LOAD/STORE ---
-  wire [31:0] loadstore_addr = rs1 + i_imm;
+  wire [31:0] loadstore_addr = rs1 + (is_store ? i_imm : i_imm);
   wire [15:0] loaded_halfword = loadstore_addr[1] ? mem_rdata[31:16] : mem_rdata[15:0];
   wire [7:0] loaded_byte = loadstore_addr[0] ? loaded_halfword[15:8] : loaded_halfword[7:0];
   wire loaded_sign = !funct3[2] & (mem_byte_access ? loaded_byte[7] : loaded_halfword[15]);
@@ -236,6 +243,19 @@ module cpu (
   wire [31:0] loaded_data = mem_byte_access ? {{24{loaded_sign}}, loaded_byte}
       : mem_halfword_access ? {{16{loaded_sign}}, loaded_halfword}
       : mem_rdata;
+
+
+  assign mem_wdata[7:0] = rs2[7:0];
+  assign mem_wdata[15:8] = loadstore_addr[0] ? rs2[7:0] : rs2[15:8];
+  assign mem_wdata[23:16] = loadstore_addr[1] ? rs2[7:0] : rs2[23:16];
+  assign mem_wdata[31:24] = loadstore_addr[0] ? rs2[7:0]
+      : loadstore_addr[1] ? rs2[15:8]
+      : rs2[31:24];
+
+  wire [3:0] store_wmask = mem_byte_access ? (
+            loadstore_addr[1] ? (loadstore_addr[0] ? 4'b1000 : 4'b0100)
+                : (loadstore_addr[0] ? 4'b0010 : 4'b0001)
+        ) : mem_halfword_access ? (loadstore_addr[1] ? 4'b1100 : 4'b0011) : 4'b1111;
 
 
 endmodule
