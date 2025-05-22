@@ -24,10 +24,7 @@ module tb ();
     clk = 0;
     forever begin
       #1 clk = ~clk;
-      if (clk && uut.proc.state == uut.proc.WAIT_DATA) begin
-        $display("ADDR = %d; B%b: %b, H%b: %b, S%b; DATA = %b", uut.proc.loadstore_addr,
-                 uut.proc.mem_byte_access, uut.proc.loaded_byte, uut.proc.mem_halfword_access,
-                 uut.proc.loaded_halfword, uut.proc.loaded_sign, uut.proc.loaded_data);
+      if (prev_leds != leds) begin
         $display("LEDS = %b", leds);
       end
 

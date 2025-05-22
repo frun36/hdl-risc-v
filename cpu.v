@@ -6,7 +6,7 @@ module cpu (
     input [31:0] mem_rdata,
     output [31:0] mem_wdata,
     output [3:0] mem_wmask,
-    output [31:0] x10
+    output reg [31:0] x10
 );
   reg [31:0] pc;
   reg [31:0] instr;
@@ -22,6 +22,7 @@ module cpu (
   wire is_load = (instr[6:0] == 7'b0000011);  // rd <- mem[rs1+Iimm]
   wire is_store = (instr[6:0] == 7'b0100011);  // mem[rs1+Simm] <- rs2
   wire is_system = (instr[6:0] == 7'b1110011);  // special
+
 
 `ifdef BENCH
   // always @(posedge clk) begin
@@ -60,7 +61,7 @@ module cpu (
   wire [31:0] j_imm = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
 
   // --- FSM ---
-  reg [31:0] register_bank[0:31];
+  (* ram_style = "block" *) reg [31:0] register_bank[0:31];
   reg [31:0] rs1;
   reg [31:0] rs2;
 
@@ -85,9 +86,7 @@ module cpu (
   wire [31:0] write_back_data;
   wire write_back_en;
 
-  assign x10 = register_bank[10];
-
-  always @(posedge rst, posedge clk) begin
+  always @( posedge clk) begin
     if (rst) begin
       pc <= 0;
       state <= FETCH_INSTR;
@@ -99,6 +98,9 @@ module cpu (
 `ifdef BENCH
         // $display("x%0d <= %b", rd_id, write_back_data);
 `endif
+        if (rd_id == 10) begin
+          x10 <= write_back_data;
+        end
       end
 
       case (state)

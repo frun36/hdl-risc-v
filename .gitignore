@@ -1,2 +1,5 @@
 tb
 .sconsign.dblite
+abc.history
+target/
+programs/target/
