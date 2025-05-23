@@ -4,7 +4,7 @@
 
 start:
     li      s0, 0
-    li      s1, 32
+    li      s1, 256
     li      s2, 0x00400004
 .L0:
     sb      s0, 0(s2)
@@ -17,7 +17,7 @@ start:
 
 wait:
     li      t0, 1
-    slli    t0, t0, 19
+    slli    t0, t0, 20
 .L2:
     addi    t0, t0, -1
     bnez    t0, .L2
