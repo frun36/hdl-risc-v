@@ -5,8 +5,7 @@ module cpu (
     output mem_rstrb,
     input [31:0] mem_rdata,
     output [31:0] mem_wdata,
-    output [3:0] mem_wmask,
-    output reg [31:0] x10
+    output [3:0] mem_wmask
 );
   reg [31:0] pc;
   reg [31:0] instr;
@@ -44,7 +43,7 @@ module cpu (
   // end
 `endif
 
-  // Source and destination registers
+  // Source and destination register addresses
   wire [4:0] rs1_id = instr[19:15];
   wire [4:0] rs2_id = instr[24:20];
   wire [4:0] rd_id = instr[11:7];
@@ -53,15 +52,14 @@ module cpu (
   wire [2:0] funct3 = instr[14:12];
   wire [6:0] funct7 = instr[31:25];
 
-  // The register bank
   wire [31:0] u_imm = {instr[31], instr[30:12], {12{1'b0}}};
   wire [31:0] i_imm = {{21{instr[31]}}, instr[30:20]};
   wire [31:0] s_imm = {{21{instr[31]}}, instr[30:25], instr[11:7]};
   wire [31:0] b_imm = {{20{instr[31]}}, instr[7], instr[30:25], instr[11:8], 1'b0};
   wire [31:0] j_imm = {{12{instr[31]}}, instr[19:12], instr[20], instr[30:21], 1'b0};
 
-  // --- FSM ---
-  (* ram_style = "block" *) reg [31:0] register_bank[0:31];
+  (* ram_style = "block" *)
+  reg [31:0] register_bank[0:31];
   reg [31:0] rs1;
   reg [31:0] rs2;
 
@@ -74,6 +72,7 @@ module cpu (
   end
 `endif
 
+  // --- FSM ---
   localparam FETCH_INSTR = 0;
   localparam WAIT_INSTR = 1;
   localparam FETCH_REGS = 2;
@@ -86,7 +85,7 @@ module cpu (
   wire [31:0] write_back_data;
   wire write_back_en;
 
-  always @( posedge clk) begin
+  always @(posedge clk) begin
     if (rst) begin
       pc <= 0;
       state <= FETCH_INSTR;
@@ -98,9 +97,6 @@ module cpu (
 `ifdef BENCH
         // $display("x%0d <= %b", rd_id, write_back_data);
 `endif
-        if (rd_id == 10) begin
-          x10 <= write_back_data;
-        end
       end
 
       case (state)
@@ -190,9 +186,8 @@ module cpu (
     };
   endfunction
   wire [31:0] shifter_in = (funct3 == 3'b001) ? flip32(alu_in_1) : alu_in_1;
-  wire [31:0] leftshift = flip32(
-      shifter
-  );  // optimization for left shift - reversed right shift of reversed value
+  // optimization for left shift - reversed right shift of reversed value
+  wire [31:0] leftshift = flip32(shifter);
   wire [31:0] shifter = $signed({instr[30] & alu_in_1[31], shifter_in}) >>> alu_in_2[4:0];
   always @* begin
     case (funct3)
