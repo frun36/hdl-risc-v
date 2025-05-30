@@ -34,7 +34,7 @@ int main() {
     next = prev + curr;
     prev = curr;
     curr = next;
-    for (unsigned j = 0; j < 1000000; j++)
-      __asm__("nop");
+    // for (unsigned j = 0; j < 1000000; j++)
+      // __asm__("nop");
   }
 }

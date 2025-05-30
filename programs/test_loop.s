@@ -22,7 +22,7 @@ start:
 
 wait:
     li      t0, 1
-    slli    t0, t0, 17
+    slli    t0, t0, 12
 .L2:
     addi    t0, t0, -1
     bnez    t0, .L2

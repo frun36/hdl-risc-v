@@ -1,13 +1,29 @@
 MEMORY
 {
-   BRAM (RWX) : ORIGIN = 0x0000, LENGTH = 0x1800
+   PROGROM (RX) : ORIGIN = 0x00000, LENGTH = 0x00200
+   DATARAM (RW) : ORIGIN = 0x00200, LENGTH = 0x00200
 }
-SECTIONS
-{
-    everything :
-    {
+SECTIONS {
+
+    .text : {
+        . = ALIGN(4);
+        target/main.o (.text)
+        *(.text*)
+    } > PROGROM
+
+    .data : {
 	. = ALIGN(4);
-	target/main.o (.text)
-        *(.*)
-    } >BRAM
+        *(.data*)          
+        *(.sdata*)
+        *(.rodata*) 
+        *(.srodata*)
+        *(.bss*)
+        *(.sbss*)
+	
+        *(COMMON)
+        *(.eh_frame)  
+        *(.eh_frame_hdr)
+        *(.init_array*)         
+        *(.gcc_except_table*)  
+    } > DATARAM
 }
