@@ -24,7 +24,8 @@ module cpu (
   wire is_io = mem_addr[22];
   wire is_ram = !is_io;
 
-  wire [13:0] mem_word_addr = mem_addr[15:2];
+  // wire [13:0] mem_word_addr = mem_addr[15:2];
+  wire [6:0] mem_word_addr = mem_addr[8:2];
 
   // RAM access
   reg [31:0] data_ram_rdata;
@@ -217,9 +218,8 @@ module cpu (
 
       case (state)
         FETCH_INSTR: begin
-          instr <= prog_rom[pc[15:2]];
+          instr <= prog_rom[pc[8:2]];
           state <= WAIT_INSTR;
-
 
 `ifdef BENCH
           if (pc >= 32'd512) begin

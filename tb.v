@@ -15,7 +15,9 @@ module tb ();
 
   always @(posedge clk) begin
     if (uut.proc.state == 2) begin
-      $display("PC=%0d", uut.proc.pc);
+      // $display("%b", uut.proc.register_bank[5]);
+      $display("PC=%0d rd %h rs1 %h:%b rs2 %h:%b", uut.proc.pc, uut.proc.rd_id, uut.proc.rs1_id,
+               uut.proc.rs1, uut.proc.rs2_id, uut.proc.rs2);
       if (uut.proc.is_alu_reg)
         $display(
             "ALUreg rd=%d rs1=%d rs2=%d funct3=%b",
@@ -32,22 +34,41 @@ module tb ();
             uut.proc.i_imm,
             uut.proc.funct3
         );
-      else if (uut.proc.is_branch) $display("BRANCH");
+      else if (uut.proc.is_branch)
+        $display(
+            "BRANCH eq %b lt %b ltu %b take %b",
+            uut.proc.eq,
+            uut.proc.lt,
+            uut.proc.ltu,
+            uut.proc.take_branch
+        );
       else if (uut.proc.is_jal) $display("JAL");
       else if (uut.proc.is_jalr) $display("JALR");
       else if (uut.proc.is_auipc) $display("AUIPC");
       else if (uut.proc.is_lui) $display("LUI");
-      else if (uut.proc.is_load) $display("LOAD");
-      else if (uut.proc.is_store) $display("STORE");
+      else if (uut.proc.is_load)
+        $display(
+            "LOAD is_io=%h raw_addr=%h word_addr=%h",
+            uut.proc.is_io,
+            uut.proc.mem_addr,
+            uut.proc.mem_word_addr
+        );
+      else if (uut.proc.is_store)
+        $display(
+            "STORE is_io=%h raw_addr=%h word_addr=%h",
+            uut.proc.is_io,
+            uut.proc.mem_addr,
+            uut.proc.mem_word_addr
+        );
       else if (uut.proc.is_system) $display("SYSTEM");
     end
   end
 
-  // initial begin
-  //   rst = 0;
-  //   #2 rst = 1;
-  //   #2 rst = 0;
-  // end
+  initial begin
+    rst = 0;
+    #2 rst = 1;
+    #2 rst = 0;
+  end
 
   reg [4:0] prev_leds = 5'bxxxxx;
   initial begin

@@ -16,7 +16,7 @@ module uart_tx #(
 
   localparam WIDTH = $clog2(START_VALUE);
 
-  reg [WIDTH:0] cnt;
+  reg [WIDTH:0] cnt = 0;
 
   reg [    9:0] data;
 
