@@ -3,8 +3,8 @@ MEMORY
    PROGROM (RX) : ORIGIN = 0x00000, LENGTH = 0x00800
    DATARAM (RW) : ORIGIN = 0x00800, LENGTH = 0x00800
 }
-SECTIONS {
-
+SECTIONS 
+{
     .text : {
         . = ALIGN(4);
         target/main.o (.text)

@@ -16,7 +16,7 @@ module tb ();
   always @(posedge clk) begin
     if (uut.proc.state == 2) begin
       // $display("%b", uut.proc.register_bank[5]);
-      $display("PC=%0d rd %h rs1 %h:%b rs2 %h:%b", uut.proc.pc, uut.proc.rd_id, uut.proc.rs1_id,
+      $display("PC=%3d rd %2d rs1 %h:%b rs2 %h:%b", uut.proc.pc, uut.proc.rd_id, uut.proc.rs1_id,
                uut.proc.rs1, uut.proc.rs2_id, uut.proc.rs2);
       if (uut.proc.is_alu_reg)
         $display(
@@ -61,14 +61,23 @@ module tb ();
             uut.proc.mem_word_addr
         );
       else if (uut.proc.is_system) $display("SYSTEM");
+      $display("");
     end
   end
 
+  integer i;
   initial begin
-    rst = 0;
-    #2 rst = 1;
-    #2 rst = 0;
+    uut.proc.pc = 0;
+    uut.proc.cycle = 0;
+    uut.proc.instret = 0;
+    for (i = 0; i < 32; i++) uut.proc.register_bank[i] = 0;
   end
+
+  // initial begin
+  //   rst = 0;
+  //   #2 rst = 1;
+  //   #2 rst = 0;
+  // end
 
   reg [4:0] prev_leds = 5'bxxxxx;
   initial begin

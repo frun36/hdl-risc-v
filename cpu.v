@@ -91,13 +91,6 @@ module cpu (
   always @(posedge clk) cycle <= rst ? 0 : cycle + 1;
 
 `ifdef BENCH
-  integer i;
-  initial begin
-    pc = 0;
-    cycle = 0;
-    instret = 0;
-    for (i = 0; i < 32; i++) register_bank[i] = 0;
-  end
 `endif
 
   // --- ALU ---
@@ -222,7 +215,7 @@ module cpu (
           state <= WAIT_INSTR;
 
 `ifdef BENCH
-          if (pc >= 32'd512) begin
+          if (pc >= 32'd2048) begin
             $display("invalid PC, out of range: %h", pc);
             $finish();
           end

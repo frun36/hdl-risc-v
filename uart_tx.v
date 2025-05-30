@@ -22,7 +22,7 @@ module uart_tx #(
 
   assign o_uart_tx = data[0] | !(|data);
 
-  always @(posedge i_clk) begin
+  always @( posedge i_clk) begin
     if (cnt[WIDTH] & !(|data)) o_ready <= 1'b1;
     else if (i_valid & o_ready) o_ready <= 1'b0;
 
