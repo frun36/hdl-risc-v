@@ -22,15 +22,20 @@ module uart_tx #(
 
   assign o_uart_tx = data[0] | !(|data);
 
-  always @( posedge i_clk) begin
-    if (cnt[WIDTH] & !(|data)) o_ready <= 1'b1;
-    else if (i_valid & o_ready) o_ready <= 1'b0;
+  always @(posedge i_clk) begin
+    if (i_rst) begin
+      cnt <= 0;
+      o_ready <= 1;
+    end else begin
+      if (cnt[WIDTH] & !(|data)) o_ready <= 1'b1;
+      else if (i_valid & o_ready) o_ready <= 1'b0;
 
-    if (o_ready | cnt[WIDTH]) cnt <= {1'b0, START_VALUE[WIDTH-1:0]};
-    else cnt <= cnt - 1;
+      if (o_ready | cnt[WIDTH]) cnt <= {1'b0, START_VALUE[WIDTH-1:0]};
+      else cnt <= cnt - 1;
 
-    if (cnt[WIDTH]) data <= {1'b0, data[9:1]};
-    else if (i_valid & o_ready) data <= {1'b1, i_data, 1'b0};
+      if (cnt[WIDTH]) data <= {1'b0, data[9:1]};
+      else if (i_valid & o_ready) data <= {1'b1, i_data, 1'b0};
+    end
   end
 
 endmodule

@@ -25,7 +25,7 @@ module cpu (
   wire is_ram = !is_io;
 
   // wire [13:0] mem_word_addr = mem_addr[15:2];
-  wire [6:0] mem_word_addr = mem_addr[8:2];
+  wire [8:0] mem_word_addr = mem_addr[10:2];
 
   // RAM access
   reg [31:0] data_ram_rdata;

@@ -53,8 +53,7 @@ module soc (
 `ifdef BENCH
   always @(posedge clk) begin
     if (uart_valid) begin
-      $write("%c", io_mem_wdata[7:0]);
-      $fflush(32'h8000_0001);
+      $display("%b %c", io_mem_wdata[7:0],io_mem_wdata[7:0]);
     end
   end
 `endif

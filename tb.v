@@ -13,6 +13,7 @@ module tb ();
       .txd (txd)
   );
 
+`ifdef DEBUG
   always @(posedge clk) begin
     if (uut.proc.state == 2) begin
       // $display("%b", uut.proc.register_bank[5]);
@@ -45,7 +46,7 @@ module tb ();
       else if (uut.proc.is_jal) $display("JAL");
       else if (uut.proc.is_jalr) $display("JALR");
       else if (uut.proc.is_auipc) $display("AUIPC");
-      else if (uut.proc.is_lui) $display("LUI");
+      else if (uut.proc.is_lui) $display("LUI imm=%0d", uut.proc.j_imm);
       else if (uut.proc.is_load)
         $display(
             "LOAD is_io=%h raw_addr=%h word_addr=%h",
@@ -55,15 +56,18 @@ module tb ();
         );
       else if (uut.proc.is_store)
         $display(
-            "STORE is_io=%h raw_addr=%h word_addr=%h",
+            "STORE is_io=%h raw_addr=%h word_addr=%h, wdata=%h, wmask=%b",
             uut.proc.is_io,
             uut.proc.mem_addr,
-            uut.proc.mem_word_addr
+            uut.proc.mem_word_addr,
+            uut.proc.mem_wdata,
+            uut.proc.mem_wmask
         );
       else if (uut.proc.is_system) $display("SYSTEM");
       $display("");
     end
   end
+`endif
 
   integer i;
   initial begin
@@ -71,13 +75,15 @@ module tb ();
     uut.proc.cycle = 0;
     uut.proc.instret = 0;
     for (i = 0; i < 32; i++) uut.proc.register_bank[i] = 0;
+
+    uut.proc.register_bank[2] = 32'h1000;
   end
 
-  // initial begin
-  //   rst = 0;
-  //   #2 rst = 1;
-  //   #2 rst = 0;
-  // end
+  initial begin
+    rst = 0;
+    #1 rst = 1;
+    #10 rst = 0;
+  end
 
   reg [4:0] prev_leds = 5'bxxxxx;
   initial begin
