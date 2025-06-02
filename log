@@ -1,0 +1,13 @@
+WARNING: cpu.v:42: $readmemh(programs/target/prog_rom.mem): Not enough words in the file for the requested range [0:511].
+WARNING: cpu.v:176: $readmemh(programs/target/data_ram.mem): Not enough words in the file for the requested range [0:511].
+[E] PC=00000000  de_pc=  0: ALUimm
+addi x10,x0,0  rs1=0x00000003  rs2=0x00000003    JoB=0 
+[E] PC=00000004  de_pc=  4: ALUimm
+addi x10,x10,1  rs1=0xxxxxxxxx  rs2=0x00000003    JoB=0 
+[E] PC=00000008  de_pc=  8: ALUimm
+addi x10,x10,1  rs1=0xxxxxxxxx  rs2=0x00000003    JoB=0 
+[E] PC=0000000c  de_pc= 12: ALUimm
+addi x10,x10,1  rs1=0xxxxxxxxx  rs2=0x00000003    JoB=0 
+[E] PC=00000010  tb.v:79: $finish called at 57 (1s)
+de_pc= 16: SYSTEM
+ebreak
