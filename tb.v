@@ -14,57 +14,79 @@ module tb ();
   );
 
 `ifdef DEBUG
+  integer j;
+  initial begin
+    for (j = 'h800; j < 'h1000; j += 4) $display("%h: %h", j, uut.proc.data_ram[j[10:2]]);
+  end
   always @(posedge clk) begin
     if (uut.proc.state == 2) begin
-      // $display("%b", uut.proc.register_bank[5]);
-      $display("PC=%3d rd %2d rs1 %h:%b rs2 %h:%b", uut.proc.pc, uut.proc.rd_id, uut.proc.rs1_id,
-               uut.proc.rs1, uut.proc.rs2_id, uut.proc.rs2);
       if (uut.proc.is_alu_reg)
         $display(
-            "ALUreg rd=%d rs1=%d rs2=%d funct3=%b",
+            "PC=%3d: ALUreg rd=%2h rs1=%2h:%h rs2=%2h:%h funct3=%b",
+            uut.proc.pc,
             uut.proc.rd_id,
             uut.proc.rs1_id,
+            uut.proc.rs1,
             uut.proc.rs2_id,
+            uut.proc.rs2,
             uut.proc.funct3
         );
       else if (uut.proc.is_alu_imm)
         $display(
-            "ALUimm rd=%d rs1=%d imm=%0d funct3=%b",
+            "PC=%3d: ALUimm rd=%2h rs1=%2h:%h imm=%h funct3=%b",
+            uut.proc.pc,
             uut.proc.rd_id,
             uut.proc.rs1_id,
+            uut.proc.rs1,
             uut.proc.i_imm,
             uut.proc.funct3
         );
       else if (uut.proc.is_branch)
         $display(
-            "BRANCH eq %b lt %b ltu %b take %b",
+            "PC=%3d: BRANCH eq=%b lt=%b ltu=%b take=%b",
+            uut.proc.pc,
             uut.proc.eq,
             uut.proc.lt,
             uut.proc.ltu,
             uut.proc.take_branch
         );
-      else if (uut.proc.is_jal) $display("JAL");
-      else if (uut.proc.is_jalr) $display("JALR");
-      else if (uut.proc.is_auipc) $display("AUIPC");
-      else if (uut.proc.is_lui) $display("LUI imm=%0d", uut.proc.j_imm);
-      else if (uut.proc.is_load)
+      else if (uut.proc.is_jal) begin
+        $display("PC=%3d: JAL rd=%2h j_imm=%0d target=%h", uut.proc.pc, uut.proc.rd_id,
+                 uut.proc.j_imm, uut.proc.pc + uut.proc.j_imm);
+      end else if (uut.proc.is_jalr) begin
+        $display("PC=%3d: JALR rd=%2h rs1=%2h:%h i_imm=%0d target=%h", uut.proc.pc, uut.proc.rd_id,
+                 uut.proc.rs1_id, uut.proc.rs1, uut.proc.i_imm,
+                 (uut.proc.rs1 + uut.proc.i_imm) & ~1);
+      end else if (uut.proc.is_auipc) begin
+        $display("PC=%3d: AUIPC rd=%2h u_imm=%h result=%h", uut.proc.pc, uut.proc.rd_id,
+                 uut.proc.u_imm, uut.proc.pc + uut.proc.u_imm);
+      end else if (uut.proc.is_lui) begin
+        $display("PC=%3d: LUI rd=%2h u_imm=%0d", uut.proc.pc, uut.proc.rd_id, uut.proc.u_imm);
+      end else if (uut.proc.is_load) begin
+        // Assumes you have:       uut.proc.rd_id     (destination register)
+        //                        uut.proc.rs1_id    (base register)
+        //                        uut.proc.rs1       (value of rs1)
+        //                        uut.proc.i_imm     (I‐type immediate / offset)
+        //                        uut.proc.is_io     (flag → memory or I/O space)
+        //                        uut.proc.mem_addr  (raw address)
+        //                        uut.proc.mem_word_addr (aligned word address)
+        //                        uut.proc.mem_rdata (data read back from memory)
+        //                        uut.proc.funct3    (to know byte/half/word, signed/unsigned)
         $display(
-            "LOAD is_io=%h raw_addr=%h word_addr=%h",
-            uut.proc.is_io,
-            uut.proc.mem_addr,
-            uut.proc.mem_word_addr
-        );
-      else if (uut.proc.is_store)
+            "PC=%3d: LOAD rd=%2h rs1=%2h:%h imm=%h funct3=%b is_io=%b raw_addr=%h word_addr=%h",
+            uut.proc.pc, uut.proc.rd_id, uut.proc.rs1_id, uut.proc.rs1, uut.proc.i_imm,
+            uut.proc.funct3, uut.proc.is_io, uut.proc.mem_addr, uut.proc.mem_word_addr);
+      end else if (uut.proc.is_store) begin
         $display(
-            "STORE is_io=%h raw_addr=%h word_addr=%h, wdata=%h, wmask=%b",
-            uut.proc.is_io,
-            uut.proc.mem_addr,
-            uut.proc.mem_word_addr,
-            uut.proc.mem_wdata,
-            uut.proc.mem_wmask
-        );
-      else if (uut.proc.is_system) $display("SYSTEM");
-      $display("");
+            "PC=%3d: STORE rs1=%2h:%h rs2=%2h:%h imm=%h funct3=%b is_io=%b raw_addr=%h word_addr=%h wdata=%h wmask=%b",
+            uut.proc.pc, uut.proc.rs1_id, uut.proc.rs1, uut.proc.rs2_id, uut.proc.rs2,
+            uut.proc.s_imm, uut.proc.funct3, uut.proc.is_io, uut.proc.mem_addr,
+            uut.proc.mem_word_addr, uut.proc.mem_wdata, uut.proc.mem_wmask);
+      end else if (uut.proc.is_system) begin
+        $display("PC=%3d: SYSTEM funct3=%b", uut.proc.pc, uut.proc.funct3);
+      end else begin
+        $display("PC=%3d: <unknown instruction class>", uut.proc.pc);
+      end
     end
   end
 `endif

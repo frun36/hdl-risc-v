@@ -25,11 +25,11 @@ int main() {
   unsigned curr = 1;
   unsigned next = 0;
 
-  volatile unsigned *leds = (volatile unsigned *)LEDS;
-  *leds = 0;
+  // volatile unsigned *leds = (volatile unsigned *)LEDS;
+  // *leds = 0;
   while (1) {
     uart_print(curr);
-    *leds = curr;
+    // *leds = curr;
 
     next = prev + curr;
     prev = curr;

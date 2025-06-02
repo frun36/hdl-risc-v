@@ -25,7 +25,7 @@ module uart_tx #(
   always @(posedge i_clk) begin
     if (i_rst) begin
       cnt <= 0;
-      o_ready <= 1;
+      o_ready <= 0;
     end else begin
       if (cnt[WIDTH] & !(|data)) o_ready <= 1'b1;
       else if (i_valid & o_ready) o_ready <= 1'b0;

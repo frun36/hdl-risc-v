@@ -234,7 +234,7 @@ module cpu (
           if (is_ebreak) $finish();
 
           if (is_load || is_store) begin
-            if (mem_addr < 32'd512) begin
+            if (mem_addr < 32'h800) begin
               $display("invalid data addr: %h", mem_addr);
               $finish();
             end
