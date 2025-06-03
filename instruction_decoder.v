@@ -36,4 +36,10 @@ function [31:0] b_imm; input [31:0] I;
   b_imm = {{20{I[31]}},I[7],I[30:25],I[11:8],1'b0}; endfunction
 function [31:0] j_imm; input [31:0] I;
   j_imm = {{12{I[31]}},I[19:12],I[20],I[30:21],1'b0}; endfunction
+
+function writes_rd; input [31:0] I; writes_rd = !is_store(I) && !is_branch(I); endfunction
+
+function reads_rs1; input [31:0] I; reads_rs1 = !(is_jal(I) || is_auipc(I) || is_lui(I)); endfunction
+
+function reads_rs2; input [31:0] I; reads_rs2 = is_alu_reg(I) || is_branch(I) || is_store(I); endfunction
 // verilog_format: on

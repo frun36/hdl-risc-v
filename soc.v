@@ -31,7 +31,7 @@ module soc (
     if (io_mem_wr & io_wordaddr[IO_LEDS_EN_BIT]) begin
       leds <= io_mem_wdata;
 `ifdef BENCH
-      $display("LEDS: %b", io_mem_wdata[5:0]);
+      #0 $display("LEDS: %b", io_mem_wdata[5:0]);
 `endif
     end
   end
@@ -56,7 +56,7 @@ module soc (
 `ifdef BENCH
   always @(posedge clk) begin
     if (uart_valid) begin
-      $display("UART: %c", io_mem_wdata[7:0]);
+      #0 $display("UART: %c", io_mem_wdata[7:0]);
     end
   end
 `endif

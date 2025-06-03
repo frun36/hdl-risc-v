@@ -8,30 +8,26 @@ module cpu (
 );
   `include "instruction_decoder.v"
 
-  // --- State machine ---
-  localparam F_BIT = 0;
-  localparam D_BIT = 1;
-  localparam E_BIT = 2;
-  localparam M_BIT = 3;
-  localparam W_BIT = 4;
+  // always @(posedge clk) begin
+  //   if (rst) begin
+  //     halt <= 0;
+  //   end
+  // end
 
-  reg [4:0] state;
-  reg       halt;
-
-  always @(posedge clk) begin
-    if (rst) begin
-      halt  <= 0;
-      state <= (1 << F_BIT);
-    end else if (!halt) begin
-      state <= {state[3:0], state[4]};
-    end
-  end
   reg [63:0] cycle;
   reg [63:0] instret;
 
   always @(posedge clk) begin
     cycle <= rst ? 0 : cycle + 1;
   end
+
+  wire d_flush;
+  wire e_flush;
+
+  wire f_stall;
+  wire d_stall;
+
+  reg  halt;
 
   localparam NOP = 32'b0000000_00000_00000_000_00000_0110011;
 
@@ -50,18 +46,26 @@ module cpu (
 
   always @(posedge clk) begin
     if (rst) begin
-      f_pc <= 0;
-    end else if (state[F_BIT]) begin
-      fd_instr <= prog_rom[f_pc[10:2]];
-      fd_pc    <= f_pc;
-      f_pc     <= f_pc + 4;
-    end else if (state[M_BIT] & jump_or_branch) begin
-      f_pc <= jump_or_branch_address;
+      f_pc   <= 0;
+      fd_nop <= 1;
+    end else begin
+      if (!f_stall) begin
+        fd_instr <= prog_rom[f_pc[10:2]];
+        fd_pc    <= f_pc;
+        f_pc     <= f_pc + 4;
+      end
+
+      if (jump_or_branch) begin
+        f_pc <= jump_or_branch_address;
+      end
+
+      fd_nop <= d_flush;
     end
   end
 
   reg  [31:0] fd_pc;
   reg  [31:0] fd_instr;
+  reg         fd_nop;
 
   // --- 2. Instruction decode (D) ---
   (* ram_style="block" *)
@@ -72,18 +76,17 @@ module cpu (
   wire [ 4:0] wb_rd_id;
 
   always @(posedge clk) begin
-    if (state[D_BIT]) begin
+    if (!d_stall) begin
       de_pc    <= fd_pc;
-      de_instr <= fd_instr;
-      de_rs1 <= register_bank[rs1_id(fd_instr)];
-      de_rs2 <= register_bank[rs2_id(fd_instr)];
+      de_instr <= (e_flush | fd_nop) ? NOP : fd_instr;
     end
-  end
 
-  always @(posedge clk) begin
-    if (wb_enable) begin
-      register_bank[wb_rd_id] <= wb_data;
-    end
+    if (e_flush) de_instr <= NOP;
+
+    de_rs1 <= register_bank[rs1_id(fd_instr)];
+    de_rs2 <= register_bank[rs2_id(fd_instr)];
+
+    if (wb_enable) register_bank[wb_rd_id] <= wb_data;
   end
 
   reg [31:0] de_pc;
@@ -137,13 +140,11 @@ module cpu (
   ) : e_alu_out;
 
   always @(posedge clk) begin
-    if (state[E_BIT]) begin
-      em_pc       <= de_pc;
-      em_instr    <= de_instr;
-      em_rs2      <= de_rs2;
-      em_e_result <= e_result;
-      em_addr     <= is_store(de_instr) ? de_rs1 + s_imm(de_instr) : de_rs1 + i_imm(de_instr);
-    end
+    em_pc       <= de_pc;
+    em_instr    <= de_instr;
+    em_rs2      <= de_rs2;
+    em_e_result <= e_result;
+    em_addr     <= is_store(de_instr) ? de_rs1 + s_imm(de_instr) : de_rs1 + i_imm(de_instr);
   end
 
   always @* halt <= !rst & is_ebreak(de_instr);
@@ -180,16 +181,15 @@ module cpu (
   wire m_is_ram = !m_is_io;
 
   assign io_mem_addr = em_addr;
-  assign io_mem_wr = state[M_BIT] & is_store(em_instr) && m_is_io;
+  assign io_mem_wr = is_store(em_instr) && m_is_io;
   assign io_mem_wdata = em_rs2;
 
-  wire [ 3:0] m_wmask = {4{is_store(em_instr) & m_is_ram & state[M_BIT]}} & m_store_wmask;
+  wire [3:0] m_wmask = {4{is_store(em_instr) & m_is_ram}} & m_store_wmask;
 
-  wire [ 8:0] m_word_addr = em_addr[10:2];
+  wire [8:0] m_word_addr = em_addr[10:2];
 
-  reg  [31:0] data_ram_rdata;
-  wire [ 3:0] data_ram_wmask = m_wmask & {4{m_is_ram}};
   always @(posedge clk) begin
+    if (is_store(em_instr) && m_store_wmask != 4'b0000) #0 $display("WRITE: %h %h %b", em_addr, m_store_data, m_is_io);
     mw_m_data <= data_ram[m_word_addr];
     if (m_wmask[0]) data_ram[m_word_addr][7:0] <= m_store_data[7:0];
     if (m_wmask[1]) data_ram[m_word_addr][15:8] <= m_store_data[15:8];
@@ -198,25 +198,23 @@ module cpu (
   end
 
   always @(posedge clk) begin
-    if (state[M_BIT]) begin
-      mw_pc        <= em_pc;
-      mw_instr     <= em_instr;
-      mw_e_result  <= em_e_result;
-      mw_io_result <= io_mem_rdata;
-      mw_addr      <= em_addr;
-      case (csr_id(
-          em_instr
-      ))
-        2'b00: mw_csr_result = cycle[31:0];
-        2'b10: mw_csr_result = cycle[63:32];
-        2'b01: mw_csr_result = instret[31:0];
-        2'b11: mw_csr_result = instret[63:32];
-      endcase
-      if (rst) begin
-        instret <= 0;
-      end else begin
-        instret <= instret + 1;
-      end
+    mw_pc        <= em_pc;
+    mw_instr     <= em_instr;
+    mw_e_result  <= em_e_result;
+    mw_io_result <= io_mem_rdata;
+    mw_addr      <= em_addr;
+    case (csr_id(
+        em_instr
+    ))
+      2'b00: mw_csr_result = cycle[31:0];
+      2'b10: mw_csr_result = cycle[63:32];
+      2'b01: mw_csr_result = instret[31:0];
+      2'b11: mw_csr_result = instret[63:32];
+    endcase
+    if (rst) begin
+      instret <= 0;
+    end else begin
+      instret <= instret + 1;
     end
   end
 
@@ -241,7 +239,7 @@ module cpu (
   wire w_load_sign = w_sext & (w_is_b ? w_load_b[7] : w_load_h[15]);
 
   wire [31:0] w_m_result = w_is_b ? {{24{w_load_sign}},w_load_b} :
-                   w_is_h ? {{16{w_load_sign}}, w_load_h} : mw_m_data ;
+                   w_is_h ? {{16{w_load_sign}}, w_load_h} : mw_m_data;
 
   assign wb_data = is_load(
       mw_instr
@@ -249,11 +247,68 @@ module cpu (
       mw_instr
   ) ? mw_csr_result : mw_e_result;
 
-  assign wb_enable = !is_branch(mw_instr) && !is_store(mw_instr) && (rd_id(mw_instr) != 0);
+  assign wb_enable = writes_rd(mw_instr) && (rd_id(mw_instr) != 0);
 
   assign wb_rd_id = rd_id(mw_instr);
 
   assign jump_or_branch_address = e_jump_or_branch_addr;
   assign jump_or_branch = e_jump_or_branch;
+
+  // Hazard handling
+  wire rs1_hazard = !fd_nop && reads_rs1(
+      fd_instr
+  ) && rs1_id(
+      fd_instr
+  ) != 0 && ((writes_rd(
+      de_instr
+  ) && rs1_id(
+      fd_instr
+  ) == rd_id(
+      de_instr
+  )) || (writes_rd(
+      em_instr
+  ) && rs1_id(
+      fd_instr
+  ) == rd_id(
+      em_instr
+  )) || (writes_rd(
+      mw_instr
+  ) && rs1_id(
+      fd_instr
+  ) == rd_id(
+      mw_instr
+  )));
+
+  wire rs2_hazard = !fd_nop && reads_rs2(
+      fd_instr
+  ) && rs2_id(
+      fd_instr
+  ) != 0 && ((writes_rd(
+      de_instr
+  ) && rs2_id(
+      fd_instr
+  ) == rd_id(
+      de_instr
+  )) || (writes_rd(
+      em_instr
+  ) && rs2_id(
+      fd_instr
+  ) == rd_id(
+      em_instr
+  )) || (writes_rd(
+      mw_instr
+  ) && rs2_id(
+      fd_instr
+  ) == rd_id(
+      mw_instr
+  )));
+
+  wire data_hazard = rs1_hazard || rs2_hazard;
+
+  assign f_stall = data_hazard | halt;
+  assign d_stall = data_hazard | halt;
+
+  assign d_flush = e_jump_or_branch;
+  assign e_flush = e_jump_or_branch | data_hazard;
 endmodule
 

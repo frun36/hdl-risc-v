@@ -18,13 +18,39 @@ soc uut (
   );
 
 `ifdef DEBUG
+  localparam NOP = 32'b0000000_00000_00000_000_00000_0110011;
+
   always @(posedge clk) begin
-    if (!rst & uut.proc.state[2]) begin
-      $write("[E] PC=%h ", uut.proc.de_pc);
-      $write(" ");
+    if (!rst) begin
+      $display("");
+
+      $write("[W] pc=%h ", uut.proc.mw_pc);
+      $write("     ");
+      riscv_disasm(uut.proc.mw_instr, uut.proc.mw_pc);
+      if (uut.proc.wb_enable)
+        $write("    x%0d <- 0x%0h", rd_id(uut.proc.mw_instr), uut.proc.wb_data);
+      $write("\n");
+
+      $write("[M] pc=%h ", uut.proc.em_pc);
+      $write("     ");
+      riscv_disasm(uut.proc.em_instr, uut.proc.em_pc);
+      $write("\n");
+
+      $write("[E] pc=%h ", uut.proc.de_pc);
+      $write("     ");
       riscv_disasm(uut.proc.de_instr, uut.proc.de_pc);
-      $write("  rs1=0x%h  rs2=0x%h  ", uut.proc.de_rs1, uut.proc.de_rs2);
-      $write("  JoB=%d ", uut.proc.jump_or_branch);
+      if (uut.proc.de_instr != NOP) begin
+        $write("  rs1=0x%h  rs2=0x%h  ", uut.proc.de_rs1, uut.proc.de_rs2);
+      end
+      $write("\n");
+
+      $write("[D] pc=%h ", uut.proc.fd_pc);
+      $write("[%s%s] ", uut.proc.rs1_hazard ? "*" : " ", uut.proc.rs2_hazard ? "*" : " ");
+      riscv_disasm(uut.proc.fd_nop ? NOP : uut.proc.fd_instr, uut.proc.fd_pc);
+      $write("\n");
+
+      $write("[F] pc=%h ", uut.proc.f_pc);
+      if (uut.proc.jump_or_branch) $write(" pc <- 0x%0h", uut.proc.jump_or_branch_address);
       $write("\n");
     end
   end
