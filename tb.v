@@ -18,39 +18,6 @@ soc uut (
   );
 
 `ifdef DEBUG
-  // integer j;
-  // initial begin
-  //   for (j = 'h800; j < 'h1000; j += 4) $display("%h: %h", j, uut.proc.data_ram[j[10:2]]);
-  // end
-  always @(posedge clk) begin
-    if (uut.proc.state[2]) begin
-      if (is_alu_reg(uut.proc.de_instr)) begin
-        $display("de_pc=%3d: ALUreg", uut.proc.de_pc);
-      end else if (is_alu_imm(uut.proc.de_instr)) begin
-        $display("de_pc=%3d: ALUimm", uut.proc.de_pc);
-      end else if (is_branch(uut.proc.de_instr)) begin
-        $display("de_pc=%3d: BRANCH", uut.proc.de_pc);
-      end else if (is_jal(uut.proc.de_instr)) begin
-        $display("de_pc=%3d: JAL", uut.proc.de_pc);
-      end else if (is_jalr(uut.proc.de_instr)) begin
-        $display("de_pc=%3d: JALR", uut.proc.de_pc);
-      end else if (is_auipc(uut.proc.de_instr)) begin
-        $display("de_pc=%3d: AUIPC", uut.proc.de_pc);
-      end else if (is_lui(uut.proc.de_instr)) begin
-        $display("de_pc=%3d: LUI", uut.proc.de_pc);
-      end else if (is_load(uut.proc.de_instr)) begin
-        $display("de_pc=%3d: LOAD", uut.proc.de_pc);
-      end else if (is_store(uut.proc.de_instr)) begin
-        $display("de_pc=%3d: STORE", uut.proc.de_pc);
-      end else if (is_system(uut.proc.de_instr)) begin
-        $display("de_pc=%3d: SYSTEM", uut.proc.de_pc);
-      end else begin
-        $display("de_pc=%3d: <unknown>", uut.proc.de_pc);
-      end
-    end
-  end
-`endif
-
   always @(posedge clk) begin
     if (!rst & uut.proc.state[2]) begin
       $write("[E] PC=%h ", uut.proc.de_pc);
@@ -61,6 +28,7 @@ soc uut (
       $write("\n");
     end
   end
+`endif
 
   integer i;
   initial begin
@@ -79,16 +47,10 @@ soc uut (
     if (uut.proc.halt) $finish();
   end
 
-  reg [4:0] prev_leds = 5'bxxxxx;
   initial begin
     clk = 0;
     forever begin
       #1 clk = ~clk;
-      if (prev_leds != leds) begin
-        $display("LEDS = %b", leds);
-      end
-
-      prev_leds <= leds;
     end
   end
 endmodule

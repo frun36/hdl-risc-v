@@ -8,8 +8,8 @@ module alu (
 );
   `include "instruction_decoder.v"
 
-  wire [2:0] alu_funct3;
-  wire [6:0] alu_funct7;
+  wire [2:0] alu_funct3 = funct3(instr);
+  wire [6:0] alu_funct7 = funct7(instr);
 
   wire [32:0] alu_minus = {1'b0, ~alu_in_2} + {1'b0, alu_in_1} + 33'd1;
   wire eq = (alu_minus[31:0] == 0);
